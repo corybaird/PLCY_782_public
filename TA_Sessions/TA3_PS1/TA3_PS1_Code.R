@@ -1,4 +1,4 @@
-# # TA3_PS1_NOTES
+# # TA3_PS1_Code
 
 # A.1 Download and import libraries
 
@@ -191,5 +191,44 @@ df_consum = df_consum %>%
 
 df_merge = merge(df_consum , df_renamed_dropna, by='Household_ID')
 df_merge%>%head(3)
+
+# 5. Graphing
+## 5.1 Data
+
+df_renamed_dropna %>% 
+  filter(Age>3 & Age<8)%>% 
+  group_by(Age)%>% summarise(
+    Attend = mean(Attendance)*100)
+
+#Save data
+barplot_data = df_renamed_dropna %>% 
+  filter(Age>3 & Age<8)%>% 
+  group_by(Age)%>% summarise(
+    Attend = mean(Attendance)*100)
+
+## 5.2 ggplot2
+#install.packages('ggplot2')
+library(ggplot2)
+
+
+barplot_data%>% 
+  ggplot(aes(x= Age, y=Attend)) + geom_bar(stat="identity") 
+
+
+## 5.3 Add colors, titles, etc
+
+barplot_data%>% 
+  ggplot(
+    aes(x= Age, y=Attend)
+  ) + geom_bar(stat="identity", width=.5, fill='red',color='blue') +
+  xlab('') + 
+  ylab('Count') + 
+  ggtitle('Look mom I can scatter plot') +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+
+
+
 
 
