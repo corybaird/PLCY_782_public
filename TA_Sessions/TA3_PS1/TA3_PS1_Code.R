@@ -3,9 +3,10 @@
 # A.1 Download and import libraries
 
 #Step 1
-install.packages('downloader')
-install.packages('foreign')
-install.packages('dplyr')
+#install.packages('downloader')
+#install.packages('foreign')
+#install.packages('dplyr')
+
 
 #Step 2
 library(foreign) #Imports dta files
@@ -42,8 +43,9 @@ unzip("mxfls.zip")
 
 
 # B.2 Import data
-
+#read.dta: foreign library
 df = read.dta("hh02dta_bc/c_ls.dta")
+
 
 df %>% 
 head(5)
@@ -56,10 +58,12 @@ head(5)
 ### 1.1.1 Rename: without saving
 
 # This function will not save changes
+
 df %>%  
   rename("Age"= "ls02_2",
          "Attendance" = "ls16",
          "Gender" = "ls04")  %>%  head(3)
+
 
 ### 1.1.2 Rename: save
 
@@ -144,23 +148,36 @@ df_renamed_dropna = df_renamed_dropna %>%
 # 3.2 Check recode
 
 df_renamed_dropna%>% 
-  select(Attendance) %>% 
+  select(Gender) %>% 
   unique()
+
 
 
 ## 3.3 Groupby and summarise (YOUR ANSWER)
 ### 3.3.1 Groupby and summarise to find answer
 
+df_renamed_dropna %>%
+  filter(Age<6)%>% 
+  group_by(Age) %>% 
+  summarise(
+    Attend_pct = mean(Attendance)
+  )
+
+
+
+
 df_renamed_dropna %>% 
 filter(Age<6)%>% 
 group_by(Age)%>% summarise(
     Total_students = n(),
-    Attend = sum(Attendance),
-    Attend_pct = (Attend/Total_students)*100,
-    Non_attend = Total_students-Attend,
-    Attend_2 = mean(Attendance)*100
     
+    Attend = sum(Attendance),
+    
+    Attend_pct = (Attend/Total_students)*100,
+    
+    Non_attend = Total_students-Attend,
 )
+
 
 
 ### 3.3.2 Table function
@@ -171,12 +188,19 @@ filter(Age<6)%>%
   table() 
 
 
+
 # 4. Merge data
 ## 4.1 Add new data set
 
-df_consum = read.dta('hh02dta_b1/i_cs.dta')
+url = 'https://github.com/corybaird/PLCY_782_public/blob/main/TA_Sessions/TA3_PS1/hh02dta_b1/i_cs.dta?raw=true'
+
+df_consum = read.dta(url)
+
 df_consum %>% head(3)
 
+df_consum %>% names()
+
+df_renamed_dropna %>% names()
 
 ## 4.2 Rename column
 ##### Data SETS MUST HAVE OVERLAPPING COLUMN WITH THE SAME DATA AND SAME NAME
@@ -184,21 +208,29 @@ df_consum %>% head(3)
 df_consum %>% 
   rename("Household_ID" = 'folio') %>%head(3)
 
+
 df_consum = df_consum %>% 
   rename("Household_ID" = 'folio') 
 
+
 ## 4.3 Merge data
 
-df_merge = merge(df_consum , df_renamed_dropna, by='Household_ID')
+df_merge = merge(df_consum, df_renamed_dropna, by='Household_ID')
+
 df_merge%>%head(3)
+
+df_merge %>% names()
+
 
 # 5. Graphing
 ## 5.1 Data
 
 df_renamed_dropna %>% 
   filter(Age>3 & Age<8)%>% 
-  group_by(Age)%>% summarise(
-    Attend = mean(Attendance)*100)
+  group_by(Age)%>% 
+  summarise(
+    Attend = mean(Attendance)*100
+    )
 
 #Save data
 barplot_data = df_renamed_dropna %>% 
@@ -206,13 +238,17 @@ barplot_data = df_renamed_dropna %>%
   group_by(Age)%>% summarise(
     Attend = mean(Attendance)*100)
 
+
 ## 5.2 ggplot2
 #install.packages('ggplot2')
+
 library(ggplot2)
 
 
-barplot_data%>% 
-  ggplot(aes(x= Age, y=Attend)) + geom_bar(stat="identity") 
+barplot_data %>% 
+  ggplot(
+    aes(x= Age, y=Attend)
+         ) + geom_bar(stat="identity") 
 
 
 ## 5.3 Add colors, titles, etc
@@ -221,11 +257,16 @@ barplot_data%>%
   ggplot(
     aes(x= Age, y=Attend)
   ) + geom_bar(stat="identity", width=.5, fill='red',color='blue') +
-  xlab('') + 
-  ylab('Count') + 
-  ggtitle('Look mom I can scatter plot') +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x=element_text(angle=45, hjust=1))
+  xlab('') + #xlabel
+  ylab('Attendance (%)') + #ylabel
+  ggtitle('Look mom I can scatter plot') + #Title
+  theme(plot.title = element_text(hjust = 0.5)) + #Centers the title
+  theme(axis.text.x=element_text(angle=45, hjust=1)) # Tilts x-axis
+
+
+
+
+
 
 
 
