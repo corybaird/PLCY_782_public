@@ -108,10 +108,10 @@ df_renamed  %>%
 df_dwelling %>% 
   select(cv07) %>% 
   unique() %>% 
+
+### 1.4.2 Answer
   
-  ### 1.4.2 Answer
-  
-  df_dwelling %>% 
+df_dwelling %>% 
   select(cv07) %>% 
   mutate(no_sleeping_dummy = as.numeric(cv07==0)) %>% 
   summarise(
@@ -172,35 +172,15 @@ df_head %>%
 
 df_head %>% 
   filter(Gender!= "NA") 
-summarise(
-  mean(Gender),
-  sd(Gender)
-)
-
-
-## 2.3 average education level
-
-df_head %>% 
-  filter(ls14!= "NA") %>% 
   summarise(
-    mean(ls14),
-    sd(ls14)
+    mean(Gender),
+    sd(Gender)
   )
 
-
-## 2.4 proportion who are working and average earnings in the past year.
-df_head %>% 
-  filter(ls12!= "NA" & ls13_2!="NA") %>% 
-  summarise(
-    workin_mean = mean(ls12),
-    workin_sd = sd(ls12),
-    wage_mean = mean(ls13_2)
-  )
-
+# Omit 2.3. & 2.4
 
 
 # 3. Now we will study the characteristics of children in the household between the ages of 6 and 18. 
-
 df_ages = df_renamed%>% 
   filter(Age>5 & Age<19)
 
@@ -220,32 +200,16 @@ df_ages %>%
 #   ylab('Age') 
 
 
-### 3.1.2 Attendance by Gender
-# Hint: groupby, summarise ggplot, geom_bar
-
-df_ages %>% 
-  filter(Attendance!="NA") %>% 
-  group_by(Gender) %>% 
-  summarise(
-    Avg_attend = mean(Attendance)
-  ) %>% ggplot(aes(x=Gender, y= Avg_attend)) + 
-  geom_bar(stat="identity", position="dodge") + 
-  xlab('Attendance (%)') + 
-  ylab('Age') +
-  coord_cartesian(xlim = c(0, 1), ylim = c(.8, .85))
+### 3.1.2 Omitted
 
 
-
-## 3.2 Now make a graph of the proportion of children who report working by age and by gender.
-
-### 3.2.1 Age
-# Hint: groupby, summarise ggplot, geom_bar
-
+## 3.2 Problem: Improper recode
+### 3.2.1 
 
 df_ages %>% 
   rename("work_dummy"= "ls12") %>% 
   filter(work_dummy!= "NA") %>% 
-  mutate(work_dummy = recode(work_dummy, "3"=0, "1"=1)) %>% 
+  mutate(work_dummy = recode(work_dummy, "3"=2, "1"=1)) %>% 
   group_by(Age) %>% 
   summarise(
     Avg_work = mean(work_dummy)
@@ -255,26 +219,42 @@ df_ages %>%
   ylab('Age') 
 
 
-### 3.2.2 Gender
-# Hint: groupby, summarise ggplot, geom_bar
+### 3.2.2 Omitted
 
 
-df_ages %>% 
-  rename("work_dummy"= "ls12") %>% 
-  filter(work_dummy!= "NA") %>% 
-  mutate(work_dummy = recode(work_dummy, "3"=0, "1"=1)) %>% 
-  group_by(Gender) %>% 
-  summarise(
-    Avg_work = mean(work_dummy)
-  ) %>% ggplot(aes(x=Gender, y= Avg_work)) + 
-  geom_bar(stat="identity") + 
-  xlab('Attendance (%)') + 
-  ylab('Age') 
+
+# 4. Problem: code is too complicated
+# 4.1 What proportion are households are composed only of household head, spouse and children? 
+### 4.1.1  My solution
 
 
-# 4. Problem: Too much code!
 
-## 4.1 My solution
+# Sofia's solution
+
+df_renamed%>% 
+  rename('relatheadhh'='ls05_1') %>% 
+  filter(relatheadhh!="NA")%>%
+  mutate(relatheadhh2=as.numeric(relatheadhh>4))%>%
+  group_by(Household_ID)%>%
+  summarise(extfamilies=max(relatheadhh2)) %>% 
+  filter(extfamilies==1) %>% 
+  summarise(pct = n()/total_houses)
+
+
+### 4.1.2 Check answer
+
+check = df_renamed %>% 
+  mutate(
+    house_head = as.numeric(ls05_1==1), #dummy
+    house_spouse =  as.numeric(ls05_1==2), #dummy
+    house_child =  as.numeric(ls05_1==3), #dummy
+    house_other_resident = as.numeric(ls05_1!=3 & ls05_1!=2 & ls05_1!=1) #dummy==1 for all individuals not parents, spouse or child
+  ) %>%  
+  group_by(Household_ID) %>% #groupby house
+  select(house_head, house_spouse,house_child,house_other_resident, Household_ID, Individual_ID, ls05_1) 
+
+## 4.2 Do most children live in these type of households or in extended families?  Explain your findings. 
+
 total_houses = df_renamed %>% select(Household_ID) %>% unique() %>% nrow()
 df_renamed %>% 
   mutate(
@@ -292,18 +272,4 @@ df_renamed %>%
          & house_other_resident!=0 #no other types of residents
   ) %>% 
   count() / total_houses #count of the filter is divided by total # of houses
-
-
-## 4.2 A brilliant students solution
-
-df_renamed%>% 
-  rename('relatheadhh'='ls05_1') %>% 
-  filter(relatheadhh!="NA")%>%
-  mutate(relatheadhh2=as.numeric(relatheadhh>4))%>%
-  group_by(Household_ID)%>%
-  summarise(extfamilies=max(relatheadhh2)) %>% 
-  filter(extfamilies==1) %>% 
-  summarise(pct = n()/total_houses)
-
-
 
