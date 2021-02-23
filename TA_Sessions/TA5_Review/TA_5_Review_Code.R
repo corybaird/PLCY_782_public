@@ -1,10 +1,10 @@
 # A.1 Install packages
 
 #Step 1
-install.packages('downloader')
-install.packages('foreign')
-install.packages('dplyr')
-install.packages('ggplot2')
+#install.packages('downloader')
+#install.packages('foreign')
+#install.packages('dplyr')
+#install.packages('ggplot2')
 
 #Step 2
 library(foreign) #Imports dta files
@@ -48,17 +48,16 @@ df_renamed = df_renamed  %>%
 
 #Method 1
 df_renamed %>% 
-  group_by(folio) %>% #Groupby house
+  group_by(Household_ID) %>% #Groupby house
   count() %>% #Counts each member in each house
   summary() #Shows summary stats
-
 
 #Method 2
 df_renamed %>% 
   group_by(Household_ID) %>% #Groupby house
   summarise(members = n()) %>% 
   mutate(members_mean = mean(members),
-         members_sd = sd(members))
+         members_sd = sd(members)) 
 
 
 #Method 3
@@ -69,22 +68,14 @@ df_renamed %>%
   sd() #or use mean() instead of sd
 
 
-
 ## 1.2 PROBLEM: "Problem with function()"
 # Method 1 
-df_renamed %>% 
-  filter(Age=18) %>% 
-  group_by(Household_ID) %>% 
-  count() %>% 
-  summary()
-
-
 df_renamed %>% 
   filter(Age<18) %>% 
   group_by(Household_ID) %>% 
   count() %>% 
   pull(n) %>% 
-  sd()
+  mean()
 
 
 ## 1.3 PROBLEM: object 'NAME OF DATA' not found
@@ -92,7 +83,7 @@ df_dwelling = read.dta('hh02dta_bc/c_cv.dta')
 
 ### 1.3.2 Solution: Method 1
 
-df_renamed  %>% 
+df_dwelling  %>% 
   mutate(toliet_dummy = as.numeric(cv16==1)) %>% 
   filter(toliet_dummy!='NA') %>% 
   summarise(
@@ -107,15 +98,16 @@ df_renamed  %>%
 
 df_dwelling %>% 
   select(cv07) %>% 
-  unique() %>% 
-
+  unique() 
+  
 ### 1.4.2 Answer
   
 df_dwelling %>% 
   select(cv07) %>% 
-  mutate(no_sleeping_dummy = as.numeric(cv07==0)) %>% 
+  mutate(no_sleeping_dummy = as.numeric(cv07==0)
+         ) %>% 
   summarise(
-    mean(no_sleeping_dummy)*100,
+    mean = 1- mean(no_sleeping_dummy),
     sd(no_sleeping_dummy)*100
   )
 
@@ -136,7 +128,7 @@ df_dwelling %>%
     firewood_dummy = replace(cv20_1a, is.na(cv20_1a), 0)
   ) %>% 
   summarise(
-    mean(firewoo_dummy),
+    mean(firewood_dummy),
     sd(firewood_dummy)
   )
 
@@ -146,7 +138,7 @@ df_dwelling %>%
 df_dwelling %>% 
   mutate(firewood_dummy = case_when(cv20_1a==1~1, TRUE~0)) %>% 
   summarise(
-    mean(firewood_dummy)
+    mean(firewood_dummy),
     sd(firewood_dummy)
   )
 
@@ -156,12 +148,11 @@ df_dwelling %>%
 ## 2.1 average age
 
 # Filter out non head of house
-df_head = df_renamed %>% 
-  filter(ls05_1==1)
+df_head = df_renamed %>% filter(ls05_1==1)
 
 # Hint: filter out na summarise
 df_head %>% 
-  #filter(Age!= "NA") %>% 
+  filter(Age!= "NA") %>% 
   summarise(
     mean(Age),
     sd(Age)
@@ -169,18 +160,21 @@ df_head %>%
 
 
 ## 2.2 Problem: Missing pipe operator
+df_head %>% names()
 
 df_head %>% 
-  filter(Gender!= "NA") 
+  filter(Gender!= "NA") %>% 
   summarise(
     mean(Gender),
     sd(Gender)
   )
 
+
 # Omit 2.3. & 2.4
 
 
 # 3. Now we will study the characteristics of children in the household between the ages of 6 and 18. 
+
 df_ages = df_renamed%>% 
   filter(Age>5 & Age<19)
 
@@ -188,17 +182,12 @@ df_ages = df_renamed%>%
 ## 3.1 Break down by each line
 ### 3.1.1 
 df_ages %>% 
-  filter(Attendance!="NA") 
-
-# %>% 
-#   group_by(Age) %>% 
-#   summarise(
-#     Avg_attend = mean(Attendance)
-#   ) %>% ggplot(aes(x=Age, y= Avg_attend)) + 
-#   geom_bar(stat="identity") + 
-#   xlab('Attendance (%)') + 
-#   ylab('Age') 
-
+  filter(Attendance!="NA") %>%
+  group_by(Age) %>%
+  summarise(
+    Avg_attend = mean(Attendance)) %>% 
+  ggplot(aes(x=Age, y=Avg_attend))+geom_bar(stat="identity")
+  
 
 ### 3.1.2 Omitted
 
@@ -225,51 +214,26 @@ df_ages %>%
 
 # 4. Problem: code is too complicated
 # 4.1 What proportion are households are composed only of household head, spouse and children? 
-### 4.1.1  My solution
-
-
-
-# Sofia's solution
-
+### 4.1.1  Answer
 df_renamed%>% 
   rename('relatheadhh'='ls05_1') %>% 
   filter(relatheadhh!="NA")%>%
   mutate(relatheadhh2=as.numeric(relatheadhh>4))%>%
   group_by(Household_ID)%>%
-  summarise(extfamilies=max(relatheadhh2)) %>% 
+  summarise(extfamilies = max(relatheadhh2)) %>% 
+  filter(extfamilies==1) %>% 
+  summarise(pct = 1-(n()/total_houses))
+
+
+# 4.1.2 Answer
+df_renamed%>% 
+  rename('relatheadhh'='ls05_1') %>% 
+  filter(relatheadhh!="NA")%>%
+  mutate(relatheadhh2=as.numeric(relatheadhh>4))%>%
+  group_by(Household_ID)%>%
+  summarise(extfamilies = max(relatheadhh2)) %>% 
   filter(extfamilies==1) %>% 
   summarise(pct = n()/total_houses)
 
 
-### 4.1.2 Check answer
-
-check = df_renamed %>% 
-  mutate(
-    house_head = as.numeric(ls05_1==1), #dummy
-    house_spouse =  as.numeric(ls05_1==2), #dummy
-    house_child =  as.numeric(ls05_1==3), #dummy
-    house_other_resident = as.numeric(ls05_1!=3 & ls05_1!=2 & ls05_1!=1) #dummy==1 for all individuals not parents, spouse or child
-  ) %>%  
-  group_by(Household_ID) %>% #groupby house
-  select(house_head, house_spouse,house_child,house_other_resident, Household_ID, Individual_ID, ls05_1) 
-
-## 4.2 Do most children live in these type of households or in extended families?  Explain your findings. 
-
-total_houses = df_renamed %>% select(Household_ID) %>% unique() %>% nrow()
-df_renamed %>% 
-  mutate(
-    house_head = as.numeric(ls05_1==1), #dummy
-    house_spouse =  as.numeric(ls05_1==2), #dummy
-    house_child =  as.numeric(ls05_1==3), #dummy
-    house_other_resident = as.numeric(ls05_1!=3 & ls05_1!=2 & ls05_1!=1) #dummy==1 for all individuals not parents, spouse or child
-  ) %>%  
-  group_by(Household_ID) %>% #groupby house
-  select(house_head, house_spouse,house_child,house_other_resident) %>%  #select created dummies
-  summarise_each(funs(sum)) %>% #sum dummy columns
-  filter(house_head==1 #house hold head
-         & house_spouse==1 #spouse
-         & house_child>0 #at least one child
-         & house_other_resident!=0 #no other types of residents
-  ) %>% 
-  count() / total_houses #count of the filter is divided by total # of houses
 
