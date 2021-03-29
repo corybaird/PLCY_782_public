@@ -1,0 +1,254 @@
+#install and check packages
+
+install.packages('downloader')
+install.packages('dplyr')
+install.packages('ggplot2')
+
+library(foreign) 
+library(dplyr) 
+library(ggplot2)
+
+#download datasets
+url_cons = "http://www.ennvih-mxfls.org/english/assets/hh02dta_b1.zip"
+
+hh_consumption = "mxfls_cons.zip"
+
+download.file(url_cons, hh_consumption)
+
+unzip("mxfls_cons.zip")
+
+url = "http://www.ennvih-mxfls.org/english/assets/hh02dta_bc.zip"
+
+hh_general = "mxfls.zip"
+
+download.file(url, hh_general)
+
+unzip("mxfls.zip")
+
+#import data
+df_cons = read.dta("hh02dta_b1/i_cs.dta")
+
+#check columns
+df_cons %>% names()
+
+#rename household variable
+df_cons = df_cons %>% rename('Household_ID'='folio')
+
+#create new dataframes
+#convert weekly consumption to monthly
+cons1 = df_cons %>% 
+  select(Household_ID, cs02a_12, cs02a_22, cs02a_32, cs02a_42, cs02a_52, cs02a_62,
+         cs02a_72, cs02a_82, cs02b_12, cs02b_22, cs02b_32, cs02b_42, cs02b_52,
+         cs02c_12, cs02c_22, cs02c_32, cs02c_42, cs02c_52, cs02c_62, cs02c_72,
+         cs02d_12, cs02d_22, cs02d_32, cs02d_42, cs02e_12, cs02e_22, cs02e_32, 
+         cs15a, cs15b, cs15c, cs15d, cs15e, cs15f, cs15g, cs15h, cs15i,
+         cs15j)
+
+cons1 = cons1 %>% 
+  mutate_at(vars(cs02a_12:cs15j),  ~ . *4.3) 
+
+#monthly consumption 
+cons2 = df_cons %>% 
+  select(Household_ID, cs16a_2, cs16b_2, cs16c_2, cs16d_2, cs16e_2,
+         cs16f_2, cs16g_2, cs16h_2, cs16i_2)
+
+
+#3 month consumption data and conversion to monthly
+df_cons_3month = read.dta('hh02dta_b1/i_cs1.dta')
+df_cons_3month = df_cons_3month%>% rename('Household_ID'= 'folio')
+
+cons3 = df_cons_3month %>% 
+  select(Household_ID, cs22a_2, cs22b_2, cs22c_2, cs22d_2, cs22e_2,
+         cs22f_2, cs22g_2, cs22h_2)
+
+cons3 = cons3 %>% 
+  mutate_at(vars(cs22a_2:cs22h_2),  ~ . /3) 
+
+#merge consumption variables into one dataframe
+df_cons_merge = merge(cons1, cons2, by='Household_ID')
+df_cons_merge = merge(df_cons_merge, cons3, by='Household_ID')
+
+#Question 1
+
+#calculate Total Consumption
+df_cons_merge = df_cons_merge %>% 
+  mutate(
+    total_cons =  select(df_cons_merge,-Household_ID) %>% 
+      replace(is.na(.), 0) %>% 
+      rowSums(.))
+
+#Total consumption summary stats
+df_cons_merge%>%
+  select(total_cons)%>%
+  summarise(mean(total_cons))
+
+
+#calculate per capita consumption
+
+df = read.dta("hh02dta_bc/c_ls.dta")
+df = df %>%  
+  rename("Age"= "ls02_2",
+         "Attendance" = "ls16",
+         "Gender" = "ls04",
+         "Household_ID" = 'folio',
+         "Individual_ID"= 'ls')
+
+#find family size by hh
+df_familymembers = df %>% 
+  group_by(Household_ID) %>% 
+  count()
+
+#merge consumption and family size
+df_cons_merge = merge(df_cons_merge, df_familymembers, by='Household_ID')
+
+#create per capita column
+df_cons_merge = df_cons_merge %>% 
+  mutate(
+    percapita = total_cons/n
+  )
+
+#percapita mean 
+df_cons_merge%>%
+  select(percapita)%>%
+  summarise(mean(percapita))
+
+#Question 2
+
+#remove extraneous df
+rm(df_cons, df_cons_3month, df_familymembers)
+rm(cons1, cons2, cons3)
+rm(df)
+
+
+#set poverty line
+povertyline = 600
+
+#head count poverty rate
+df_cons_merge %>% 
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  summarise(mean(pov_dummy))
+
+#average poverty gap
+df_cons_merge %>% 
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gap = povertyline-percapita) %>% 
+  summarise(mean(poverty_gap))
+
+#poverty gap squared
+df_cons_merge %>% 
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gapsq = (povertyline-percapita)^2) %>% 
+  summarise(mean(poverty_gapsq))
+
+#Question 3
+
+#import residence data
+residence_df = read.dta('hh02dta_bc/c_portad.dta')
+residence_df = residence_df%>% rename('Household_ID' = 'folio')
+
+#new df without other consumption variables
+skinny_df_cons_merge=df_cons_merge%>%
+  select(Household_ID, total_cons, n, percapita)
+
+#merge with consumption data
+residence_df=residence_df%>% 
+  select(Household_ID,estrato)
+
+df_cons_merge = merge(df_cons_merge,residence_df)
+
+#merge with skinny df for easier viewing
+skinny_df_cons_merge = merge(skinny_df_cons_merge,residence_df)
+
+#estrato 1
+#head count poverty rate
+skinny_df_cons_merge%>%
+  filter(estrato==1)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  summarise(mean(pov_dummy))
+
+#average poverty gap
+skinny_df_cons_merge%>%
+  filter(estrato==1)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gap = povertyline-percapita) %>% 
+  summarise(mean(poverty_gap))
+
+#average poverty gap squared
+skinny_df_cons_merge%>%
+  filter(estrato==1)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gapsq = (povertyline-percapita)^2) %>% 
+  summarise(mean(poverty_gapsq))
+
+#estrato 2
+#head count poverty rate
+skinny_df_cons_merge%>%
+  filter(estrato==2)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  summarise(mean(pov_dummy))
+
+#average poverty gap
+skinny_df_cons_merge%>%
+  filter(estrato==2)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gap = povertyline-percapita) %>% 
+  summarise(mean(poverty_gap))
+
+#average poverty gap squared
+skinny_df_cons_merge%>%
+  filter(estrato==2)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gapsq = (povertyline-percapita)^2) %>% 
+  summarise(mean(poverty_gapsq))
+
+#estrato 3
+#head count poverty rate
+skinny_df_cons_merge%>%
+  filter(estrato==3)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  summarise(mean(pov_dummy))
+
+#average poverty gap
+skinny_df_cons_merge%>%
+  filter(estrato==3)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gap = povertyline-percapita) %>% 
+  summarise(mean(poverty_gap))
+
+#average poverty gap squared
+skinny_df_cons_merge%>%
+  filter(estrato==3)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gapsq = (povertyline-percapita)^2) %>% 
+  summarise(mean(poverty_gapsq))
+
+#estrato 4
+#head count poverty rate
+skinny_df_cons_merge%>%
+  filter(estrato==4)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  summarise(mean(pov_dummy))
+
+#average poverty gap
+skinny_df_cons_merge%>%
+  filter(estrato==4)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gap = povertyline-percapita) %>% 
+  summarise(mean(poverty_gap))
+
+#average poverty gap squared
+skinny_df_cons_merge%>%
+  filter(estrato==4)%>%
+  mutate(pov_dummy = as.numeric(percapita<povertyline)) %>% 
+  filter(pov_dummy==1) %>% 
+  mutate(poverty_gapsq = (povertyline-percapita)^2) %>% 
+  summarise(mean(poverty_gapsq))

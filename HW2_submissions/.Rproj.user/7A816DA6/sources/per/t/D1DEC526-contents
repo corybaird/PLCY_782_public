@@ -1,0 +1,172 @@
+#PS2
+
+#Patrick Coghlan
+
+#Prep
+install.packages('downloader')
+install.packages('dplyr')
+install.packages('ggplot2')
+
+library(foreign)
+library(dplyr)
+library(ggplot2)
+
+#DataSets
+url_first= "http://www.ennvih-mxfls.org/english/assets/hh02dta_b1.zip"
+file_name = "mxfls_cons.zip"
+download.file(url_first,file_name)
+unzip("mxfls_cons.zip")
+
+url_second="http://www.ennvih-mxfls.org/english/assets/hh02dta_bc.zip"
+file_name_2="mxfls.zip"
+download.file(url_second,file_name_2)
+unzip("mxfls.zip")
+
+
+#Import Data
+df_first = read.dta("hh02dta_b1/i_cs.dta")
+#Show Columns
+df_first %>% names()
+#Rename
+df_first = df_first %>% rename('Household_ID'=folio)
+
+#Weekly Variables
+cons1 = df_first %>% 
+  select(Household_ID, contains('cs0')& ends_with('2')
+  ) 
+
+#Convert Weekly to Monthly
+cons1 = cons1 %>% 
+  mutate_at(vars(cs02a_12:cs06_2), ~.*4.3)
+  
+#Monthly Consumption Data
+cons2 = df_first %>% 
+  select(Household_ID, contains('cs1')& ends_with('_2') )
+
+#Three MOnth Data
+df_3month = read.dta('hh02dta_b1/i_cs1.dta')
+df_3month = df_3month %>% rename('Household_ID'='folio')
+
+#Select Data
+cons3 = df_3month %>%
+  select(Household_ID, contains('cs22') & ends_with('_2'), contains('cs24')&ends_with('_2'))
+
+#Divide By 3
+cons3 %>% 
+  mutate_at(vars(cs22a_2:cs24h_2), ~./3)
+
+#Merging Consumption Into One Data Frame
+df_merge = merge(cons1, cons2, by='Household_ID')
+
+#Merge Last Consumption Into One Data Frame
+df_merge = merge(df_merge, cons3, by='Household_ID')
+
+#Problem 1 
+#Total Consumption
+df_merge=df_merge %>%
+  mutate(
+    total_cons = select(df_merge,-Household_ID) %>% 
+      replace(is.na(.), 0) %>%
+      rowSums(.)
+  )
+
+#Per Capita Consumption
+#Import from HW1
+df_second = read.dta("hh02dta_bc/c_ls.dta")
+#Renaming
+df_second = df_second %>%  
+  rename("Age"= "ls02_2",
+         "Attendance" = "ls16",
+         "Gender" = "ls04",
+         "Household_ID" = 'folio',
+         "Individual_ID"= 'ls')
+
+#Family Member Data
+#Count & Merge
+df_family= df_second %>% 
+  group_by(Household_ID) %>% 
+  count()
+
+df_merge = merge(df_merge, df_family, by='Household_ID')
+
+#Create Per Capita Column
+df_merge=df_merge %>% 
+  mutate(
+    Per_Capita = total_cons/n
+  )
+
+#Problem 2
+#Assume Poverty Line = 600 Pesos
+poverty_line = 600
+#Create Reference For Poverty Dummy
+df_merge=df_merge %>% 
+  mutate(
+    povdummy=as.numeric(Per_Capita<poverty_line)
+  )
+
+#Head Count
+df_merge %>% 
+  mutate(povdummy=as.numeric(Per_Capita<600)) %>% 
+  summary()
+
+#Poverty Gap
+df_merge %>% 
+  filter(povdummy==1) %>%
+  mutate(poverty_gap= poverty_line - Per_Capita) %>% 
+  summarize(mean(poverty_gap))
+  
+#Squaring Poverty Gap
+df_merge %>% 
+  filter(povdummy==1) %>% 
+  mutate(poverty_gap_squared = (poverty_line-Per_Capita)^2) %>% 
+  summary()
+
+#Problem 3
+#Import Data for Residence
+df_residence= read.dta('hh02dta_bc/c_portad.dta')
+df_residence= df_residence %>% rename('Household_ID'='folio')
+
+#Merge Data
+df_merge = merge(df_merge, df_residence)
+
+options(pillar.sigfig=5)
+
+#Grouping by Estrato - Head Count
+
+#Rural Areas = 4
+#Less Urban = 3
+#More Urban = 2
+#Extremely Urban = 1
+df_merge %>% 
+  group_by(estrato) %>%
+  mutate(povdummy=as.numeric(Per_Capita<600)) %>% 
+  summarize(mean(povdummy))
+
+#Poverty Gap
+df_merge %>% 
+  group_by(estrato) %>% 
+  filter(povdummy==1) %>%
+  mutate(poverty_gap=poverty_line - Per_Capita) %>% 
+  summarize(mean(poverty_gap))
+  
+#Poverty Gap Squared
+df_merge %>% 
+  group_by(estrato) %>% 
+  filter(povdummy==1) %>% 
+  mutate(poverty_gap_squared = (poverty_line-Per_Capita)^2) %>% 
+  summarize(mean(poverty_gap_squared))
+
+#Problem 4
+#See Word Document for answer
+
+
+
+
+
+
+
+
+
+
+
+
