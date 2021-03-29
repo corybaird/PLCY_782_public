@@ -136,8 +136,8 @@ df_16_65 %>%
 
 ### 1.4.1 Calculate hourly wage
 df_16_65 = df_16_65 %>% 
-  mutate(Monthly_hours = hrs_worked*4.3, #tb44p_2 = hrs_worked
-         Hourly_wage  = monthly_income/Monthly_hours # tb35a_2 = monthly_income
+  mutate(Monthly_hours = #MULTIPLY hours worked by 4.3, #tb44p_2 = hrs_worked
+         Hourly_wage  = #WAGE/MONTHLYHOURS # tb35a_2 = monthly_income
   ) 
 
 
