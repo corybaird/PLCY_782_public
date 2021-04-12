@@ -53,11 +53,35 @@ df_groupby = df %>%
   summarise(column_mean = mean(P7260))
 
 df_groupby
-            
+
+# Replace NA
+df_groupby = df_groupby %>% replace(is.na(.), 0)
+df_groupby
+
 
 ## 2.1 Graph
 df_groupby %>% 
   ggplot(aes(y="column_mean", x= "P7420S7")) + geom_bar(stat="identity")
+
+
+
+## 2.2 T-tests
+
+df %>% 
+  select(P7310) %>%  
+  unique()
+
+
+group1 = df %>% 
+  filter(P7310==1) %>% #Filter by group
+  pull(P7260) #Variable of interest
+
+group2 = df %>% 
+  filter(P7310==2) %>% # Filter by group
+  pull(P7260) #Variable of interest
+
+
+t.test(group1, group2)
 
 
 # 3. Regression
@@ -148,6 +172,9 @@ mtcars %>% head(2)
 summary(glm(am~ cyl+disp+drat+mpg, family='binomial', mtcars))
 
 
+# 4. Advanced R
+## 4.1 Download: For loop
+
 # folder names
 folders = list.dirs('Data')
 folders = folders[c(2:length(folders))] #remove data name
@@ -160,6 +187,28 @@ for (folder in folders){
   data_1 = read.csv("Data/Febrero/\xb5rea - Caracter\xa1sticas generales (Personas).csv", sep=';')
   merge_df = rbind(merge_df, data_1)
 }
+
+
+## 4.2 T-tests: For loop
+
+df %>%summary()
+
+for (column_of_interest in c('P7260','P7250')){
+  print(column_of_interest)
+  
+  group1 = df %>% 
+    filter(P7310==1) %>% #Filter by group
+    pull(column_of_interest) #Variable of interest
+  
+  group2 = df %>% 
+    filter(P7310==2) %>% # Filter by group
+    pull(column_of_interest) #Variable of interest
+  
+  ttest = t.test(group1, group2)
+  print(ttest)
+}
+
+
 
 
 
