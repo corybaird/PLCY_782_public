@@ -63,11 +63,44 @@ for (column_of_interest in c('P7260','P7250')){
 
 # 2. Interpreting regressions
 
-## 2.1 Regression
+## 2.1 Regression: Level - Level
 mtcars %>% head(3)
 
 model = lm(mpg~wt+qsec+am, data=mtcars)
 model
+
+coefs = model$coefficients
+coefs = coefs[(c(2:length(coefs)))]
+
+coefs_num = coefs
+coefs_names = names(coefs)
+
+for (i in 1:length(coefs)){
+  num = round(coefs_num[i],3)
+  name = coefs_names[i]
+  output = paste('For a increase of 1 in', name, '---->MPG changes by', num, sep=' ')
+  print(output)
+}
+
+
+## 2.2 Regression: Log-level
+
+model = lm(log(mpg)~wt+qsec+am, data=mtcars)
+model
+
+coefs = model$coefficients
+coefs = coefs[(c(2:length(coefs)))]
+
+coefs_num = coefs
+coefs_names = names(coefs)
+
+for (i in 1:length(coefs)){
+  num = round(coefs_num[i],3)*100
+  name = coefs_names[i]
+  output = paste('For a increase of 1 in', name, '---->MPG changes by', num, 'PERCENT', sep=' ')
+  print(output)
+}
+
 
 
 
