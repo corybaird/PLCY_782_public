@@ -2,7 +2,6 @@
 #http://www.ennvih-mxfls.org/english/assets/hh02cb_bc.pdf
 
 
-
 ## A.1 Download and load packages
 #Step 1
 install.packages('downloader')
@@ -48,15 +47,18 @@ df_wt %>% head(2)
 ### C.2.1 Renname weights
 df_wt = df_wt %>% 
   rename('weights' = 'fac_libc')
+
 df_wt %>% 
   names()
 
 ### C.2.2 Remove leading zeros from folio column
-df_wt = df_wt %>% 
-  mutate(folio = str_replace(folio, "^0+" ,"")) 
 
-df_wt %>% 
-  head(5)
+######## IMPORTANT ########
+# This is where we had a coding issue because we failed to download the "stringr" library
+######## IMPORTANT ########
+df_wt = df_wt %>% 
+  mutate(folio = str_replace(folio, "^0+" ,"") # This is the line of code that was not working
+         )
 
 # C.3 Individ data
 df_ind_file = "hh02dta_bc/c_ls.dta"
@@ -77,7 +79,6 @@ df_house %>%
 df = merge(df_wt, 
       df_house, 
       by =c('folio'))
-
 
 # 1. Question 1: USE WEIGHTS
 # Provide a table of means and standard deviations of the following variables 
@@ -123,21 +124,19 @@ df_homesize %>%
   pull(family_members) %>% 
   sd()
 
-
 ## 1.1.2 Weight mean
 # Corresponds to question 2
 ### Method 1
 df_homesize %>% 
-  as_survey(weights = weights) %>% 
-  summarize(
-    MEAN = survey_mean(family_members),
-    SD = survey_sd(family_members)
-  )
-  
+  as_survey(weights = weights) %>%
+  summarize(family_mean_weighted = survey_mean(family_members),
+            family_sd_weighted = survey_sd(family_members) ) 
+
 
 # Method 2
 df_homesize %>% 
   summarize(
+    family_mean_UNweighted = mean(family_members),
     family_mean_WEIGHTED = weighted.mean(family_members, weights),
   )
 
@@ -145,7 +144,7 @@ df_homesize %>%
 ## 1.2 Number of children under 18 in the household
 ### 1.2.A Create new dataframe for children under 18
 df_under18 = df_ind %>% 
-  filter(ls02_2 < 19) %>% 
+  filter(ls02_2 < 19) %>% #ls02_2= Age 
   group_by(folio) %>% 
   count()
 
@@ -177,18 +176,36 @@ df_under18 %>%
     under18_weighted_sd = survey_sd(Number_under18)
   )
 
+df_under18 %>% 
+  summarize(
+    under18_weighted_mean = weighted.mean(Number_under18, weights),
+  )
+
 
 ## 1.3 Proportion of households with a toilet
 ### 1.3.A Show unique values 
 #cv16
 df %>% 
   select(cv16) %>% 
+  head(5)
+
+df %>% 
+  select(cv16) %>% 
   unique()
 
 ### 1.3.1 Create dummy
+df %>% 
+  mutate(dummy_toilet = as.numeric(cv16==1)) %>% 
+  select(dummy_toilet, cv16) %>% 
+  head(20)
+
+#Method 1
 df = df %>% 
   mutate(dummy_toilet = as.numeric(cv16==1)) 
 
+#Method 2
+df %>% 
+  mutate(cv16 =  recode(cv16, '4'=0, '3'=0, '2'=0, '1' =1))
 ### 1.3.1.1 Show result
 df %>% 
   select(dummy_toilet, cv16) %>% 
@@ -197,6 +214,11 @@ df %>%
 ### 1.3.2 Show mean
 df %>% 
   select(dummy_toilet) %>% 
+  summary()
+
+df %>% 
+  filter(dummy_toilet != 'NA') %>% 
+  select(dummy_toilet) %>%
   summary()
 
 ### 1.3.3 Remove na
@@ -209,7 +231,8 @@ df %>%
 df %>% 
   filter(dummy_toilet != 'NA') %>% 
   summarize(mean = mean(dummy_toilet),
-            #add sd) 
+            #add sd
+            ) 
 
 ### 1.3.4 WEIGHTED mean
 # Corresponds to question 2
@@ -219,6 +242,7 @@ df %>%
   summarize(toilet_weighted_MEAN = survey_mean(dummy_toilet),
             toilet_weight_SD = survey_sd(dummy_toilet)
             ) 
+
 
 ## 1.4 Proportion of households with a separate room for cooking
 #Hint: c_cv.dta dataset
@@ -278,8 +302,7 @@ df_ind %>%
   filter(ls05_1 == 1) %>% 
   group_by(ls14) %>% 
   count() %>% 
-  mutate(pct = n/length(df))
-  
+  mutate(pct = n/ 35677 *100 )
 
 # 2.3 proportion who are working or contributing to HH expenditure.
 
@@ -289,9 +312,13 @@ df_ind %>%
 # Corresponds to question 4
 ## 3.1 Filter by age
 ### You must find the age column
-df_ind %>% 
+df_school = df_ind %>% 
   filter(AGECOLUMN>8 & AGECOLUMN)# AGECOLUMN is not correct find the age from the codebook
 
+df_school %>% 
+  mutate(attend_dummy = as.numeric(SCHOOLATTENDCOLUMN == 1)) %>% 
+  groupby(AGECOLUMN) %>% 
+  summarize(mean_unweighted = mean(attend_dummy))
 
 ## 3.2 Use ggplot 
 # This is shown in this note: https://github.com/corybaird/PLCY_782_public/blob/main/TA_Sessions/TA3_PS1/TA3_PS1_Notes.ipynb
