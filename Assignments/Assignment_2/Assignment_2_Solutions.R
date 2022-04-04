@@ -258,11 +258,20 @@ df_cons_all = df_cons_all %>%
   mutate(urban_dummy = as.numeric(estrato ==1 |estrato==2))
 
 ## 3.3.1 Headcount
-headcount = df_cons_all %>% 
-  filter(pov_dummy==1) %>% 
+### People total
+pop_total = df_cons_all %>% 
   group_by(urban_dummy) %>% 
-  summarize(ans3_1_povtotal = sum(family_members),
-            ans3_1_povpct = ans3_1_povtotal  / total_people)
+  summarize( ans3_1_povpct = sum(family_members))
+
+# People in pov
+pop_pov = df_cons_all %>% 
+  filter(pov_dummy == 1) %>% 
+  group_by(urban_dummy) %>% 
+  summarize( ans3_1_povpct = sum(family_members))
+
+# People in pov / people total
+headcount = pop_pov / pop_total
+headcount = headcount %>% replace(is.na(.), 0)
 
 ## 3.3.2 Poverty gap
 pov_gap_ratio = df_cons_all %>%
@@ -272,7 +281,7 @@ pov_gap_ratio = df_cons_all %>%
     ans3_2_povgap = mean((povertyline - percap_cons) / povertyline)
   )
 ans_3 = merge(headcount, pov_gap_ratio, by = 'urban_dummy')
-
+ans_3
 ### 3.3.3 Poverty gap squared
 pov_gap_sq = df_cons_all %>%
   filter(pov_dummy==1) %>% 
@@ -298,7 +307,7 @@ ans %>%
   write.csv('Output/ans_1_2.csv')
 
 ## 4.2 Output answer 3
-ans_2 %>% 
+ans_3 %>% 
   select(-contains('total')) %>% # Gets rid of total column
   rotate_df() %>% # Transpose DF
   round(3)  %>% 
